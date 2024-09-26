@@ -13,66 +13,22 @@ from langfuse import Langfuse
 # Set page configuration (must be the first Streamlit command)
 st.set_page_config(page_title="FAKE OR REAL", page_icon="🧐", layout="centered")
 
-# Initialize feedback session state
-if 'fbk' not in st.session_state:
-    st.session_state.fbk = str(uuid.uuid4())
-
-if 'run_id' not in st.session_state:
-    st.session_state.run_id = None
-
-# Initialize Langfuse callback handler
-langfuse_handler = CallbackHandler(user_id="IBRAHIM")
-
-
-# EduBot creation
-def create_edubot():
-    edubotcreator = EduBotCreator()
-    edubot = edubotcreator.create_edubot()
-    return edubot
-
-
-# Handles user input, streams the bot's response, and stores the run_id
-def handle_userinput(user_input):
-    with collect_runs() as cb:
-        for chunk in st.session_state.chain_with_history.stream(
-                {"input": user_input},
-                config={"configurable": {"session_id": "any"}, "callbacks": [langfuse_handler]}
-        ):
-            yield chunk
-        st.session_state.run_id = cb.traced_runs[0].id  # Track the run ID for feedback scoring
-
-
-# Feedback callback to Langfuse and updating the state
-def fbcb(feedback):
-    score_mappings = {
-        "thumbs": {"👍": 1, "👎": 0},
-    }
-    score = score_mappings["thumbs"].get(feedback["score"])
-
-    # Send the feedback score and comment to Langfuse
-    langfuse_client = Langfuse()
-    langfuse_client.score(
-        trace_id=str(st.session_state.run_id),
-        name="user-explicit-feedback",
-        value=score,
-        comment=feedback.get("text")  # Optional text feedback
-    )
-
-    # Display a thank you message after submission
-    st.success("Thank you for your feedback!", icon="✅")
-
-    # Generate a new feedback key to reset the form for the next input
-    st.session_state.fbk = str(uuid.uuid4())
-
-
-# Custom styling for better layout and design
+# Custom CSS for dark and light mode
 def custom_css():
     st.markdown("""
         <style>
             /* Background */
-            .stApp {
-                background: linear-gradient(135deg, #343a40 10%, #495057 100%);
-                color: #f8f9fa;
+            body {
+                background-color: #f0f2f6; /* Light background */
+                color: #000000; /* Light mode text */
+            }
+
+            /* Dark Mode */
+            @media (prefers-color-scheme: dark) {
+                body {
+                    background-color: #121212; /* Dark background */
+                    color: #ffffff; /* Dark mode text */
+                }
             }
 
             /* Chat and feedback containers */
@@ -145,6 +101,53 @@ def custom_css():
         </style>
     """, unsafe_allow_html=True)
 
+# Initialize feedback session state
+if 'fbk' not in st.session_state:
+    st.session_state.fbk = str(uuid.uuid4())
+
+if 'run_id' not in st.session_state:
+    st.session_state.run_id = None
+
+# Initialize Langfuse callback handler
+langfuse_handler = CallbackHandler(user_id="Ibrahim")
+
+# EduBot creation
+def create_edubot():
+    edubotcreator = EduBotCreator()
+    edubot = edubotcreator.create_edubot()
+    return edubot
+
+# Handles user input, streams the bot's response, and stores the run_id
+def handle_userinput(user_input):
+    with collect_runs() as cb:
+        for chunk in st.session_state.chain_with_history.stream(
+                {"input": user_input},
+                config={"configurable": {"session_id": "any"}, "callbacks": [langfuse_handler]}
+        ):
+            yield chunk
+        st.session_state.run_id = cb.traced_runs[0].id  # Track the run ID for feedback scoring
+
+# Feedback callback to Langfuse and updating the state
+def fbcb(feedback):
+    score_mappings = {
+        "thumbs": {"👍": 1, "👎": 0},
+    }
+    score = score_mappings["thumbs"].get(feedback["score"])
+
+    # Send the feedback score and comment to Langfuse
+    langfuse_client = Langfuse()
+    langfuse_client.score(
+        trace_id=str(st.session_state.run_id),
+        name="user-explicit-feedback",
+        value=score,
+        comment=feedback.get("text")  # Optional text feedback
+    )
+
+    # Display a thank you message after submission
+    st.success("Thank you for your feedback!", icon="✅")
+
+    # Generate a new feedback key to reset the form for the next input
+    st.session_state.fbk = str(uuid.uuid4())
 
 # Main Streamlit app logic
 def main():
@@ -154,6 +157,9 @@ def main():
     # Apply custom CSS styling
     custom_css()
 
+    # Display header image from your assets folder
+    st.image("assets/misinfo_image-removebg.png", width=700)
+    
     # Set up page title
     st.title("Misinfo Detector")
 
@@ -203,7 +209,6 @@ def main():
                 )
 
             st.markdown('</div>', unsafe_allow_html=True)
-
 
 # Run the app
 if __name__ == "__main__":
